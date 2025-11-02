@@ -11,5 +11,5 @@ venv\Scripts\activate
 ## Run Streamlit App
 
 ```bash
-streamlit run "C:\Users\sisil\OneDrive\Documents\TUGAS DICODING\submission\Dashboard\dashboard.py"
+streamlit run "C:\Users\sisil\Downloads\Dashboard\dashboard.py"
 ```
