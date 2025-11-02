@@ -10,6 +10,15 @@ st.title("🚲 Dashboard Bike Sharing Dataset")
 # Load data
 hour_df = pd.read_csv("hour_dataset.csv")
 
+# Label cuaca
+cuaca_labels = {
+    1: "Cerah / Berawan ringan",
+    2: "Berkabut / Mendung",
+    3: "Hujan ringan / Salju ringan",
+    4: "Hujan lebat / Salju lebat"
+}
+hour_df["cuaca_label"] = hour_df["weathersit"].map(cuaca_labels)
+
 # Preprocessing tambahan
 hour_df['is_weekend'] = hour_df['weekday'].isin([0, 6]).astype(int)
 hour_df['temp_bin'] = pd.cut(hour_df['temp'], bins=10)
@@ -35,13 +44,17 @@ elif hari_opsi == "Hari Libur":
     filtered_df = filtered_df[filtered_df["holiday"] == 1]
 
 # Filter cuaca
-cuaca = st.sidebar.multiselect("Kondisi Cuaca", options=hour_df["weathersit"].unique(), default=hour_df["weathersit"].unique())
-filtered_df = filtered_df[filtered_df["weathersit"].isin(cuaca)]
+cuaca_terpilih = st.sidebar.multiselect(
+    "Kondisi Cuaca",
+    options=hour_df["cuaca_label"].unique(),
+    default=hour_df["cuaca_label"].unique()
+)
+filtered_df = filtered_df[filtered_df["cuaca_label"].isin(cuaca_terpilih)]
 
 # ============================
 # Visualisasi 1: Rata-rata Penyewaan per Jam
 # ============================
-st.subheader("Rata-rata Penyewaan Sepeda per Jam (Keseluruhan)")
+st.subheader("Rata-rata Penyewaan Sepeda per Jam (Terfilter)")
 fig1, ax1 = plt.subplots(figsize=(10, 5))
 sns.lineplot(data=filtered_df, x='hr', y='cnt', estimator='mean', ci=None, ax=ax1)
 ax1.set_xticks(range(0, 24))
@@ -55,7 +68,7 @@ st.pyplot(fig1)
 # ============================
 st.subheader("Pola Penyewaan: Hari Kerja vs Akhir Pekan")
 fig2, ax2 = plt.subplots(figsize=(10, 5))
-sns.lineplot(data=hour_df, x='hr', y='cnt', hue='workingday', estimator='mean', ci=None, ax=ax2)
+sns.lineplot(data=filtered_df, x='hr', y='cnt', hue='workingday', estimator='mean', ci=None, ax=ax2)
 ax2.set_xticks(range(0, 24))
 ax2.set_xlabel("Jam")
 ax2.set_ylabel("Jumlah Penyewaan")
@@ -67,8 +80,9 @@ st.pyplot(fig2)
 # Visualisasi 3: Hari Libur
 # ============================
 st.subheader("Pola Penyewaan pada Hari Libur")
+libur_df = filtered_df[filtered_df['holiday'] == 1]
 fig3, ax3 = plt.subplots(figsize=(10, 5))
-sns.lineplot(data=hour_df[hour_df['holiday'] == 1], x='hr', y='cnt', estimator='mean', ci=None, color='orange', ax=ax3)
+sns.lineplot(data=libur_df, x='hr', y='cnt', estimator='mean', ci=None, color='orange', ax=ax3)
 ax3.set_xticks(range(0, 24))
 ax3.set_xlabel("Jam")
 ax3.set_ylabel("Jumlah Penyewaan")
@@ -79,7 +93,7 @@ st.pyplot(fig3)
 # Visualisasi 4: Jam Tersibuk
 # ============================
 st.subheader("5 Jam Tersibuk")
-top5 = hour_df.groupby('hr')['cnt'].mean().sort_values(ascending=False).head(5)
+top5 = filtered_df.groupby('hr')['cnt'].mean().sort_values(ascending=False).head(5)
 fig4, ax4 = plt.subplots()
 sns.barplot(x=top5.index, y=top5.values, ax=ax4)
 ax4.set_xlabel("Jam")
@@ -91,8 +105,8 @@ st.pyplot(fig4)
 # ============================
 st.subheader("Distribusi Penyewaan Berdasarkan Cuaca")
 fig5, ax5 = plt.subplots()
-sns.boxplot(data=hour_df, x='weathersit', y='cnt', ax=ax5)
-ax5.set_xlabel("Kondisi Cuaca (1=Clear, 2=Mist, 3=Rain/Snow)")
+sns.boxplot(data=filtered_df, x='cuaca_label', y='cnt', ax=ax5)
+ax5.set_xlabel("Kondisi Cuaca")
 ax5.set_ylabel("Jumlah Penyewaan")
 st.pyplot(fig5)
 
@@ -111,37 +125,37 @@ def plot_bin(df, bin_col, title, xlabel):
     st.pyplot(fig)
 
 st.subheader("Suhu vs Penyewaan")
-plot_bin(hour_df, 'temp_bin', 'Rata-rata Penyewaan terhadap Suhu', 'Suhu')
+plot_bin(filtered_df, 'temp_bin', 'Rata-rata Penyewaan terhadap Suhu', 'Suhu')
 
 st.subheader("Kelembaban vs Penyewaan")
-plot_bin(hour_df, 'hum_bin', 'Rata-rata Penyewaan terhadap Kelembaban', 'Kelembaban')
+plot_bin(filtered_df, 'hum_bin', 'Rata-rata Penyewaan terhadap Kelembaban', 'Kelembaban')
 
 st.subheader("Kecepatan Angin vs Penyewaan")
-plot_bin(hour_df, 'wind_bin', 'Rata-rata Penyewaan terhadap Kecepatan Angin', 'Kecepatan Angin')
+plot_bin(filtered_df, 'wind_bin', 'Rata-rata Penyewaan terhadap Kecepatan Angin', 'Kecepatan Angin')
 
 # ============================
 # Visualisasi 9: Cluster Casual vs Registered
 # ============================
 st.subheader("Rata-rata Penyewaan per Jam Berdasarkan Cluster")
 
-casual_workday = hour_df[hour_df['workingday'] == 1].groupby('hr')['casual'].mean()
-casual_holiday = hour_df[hour_df['holiday'] == 1].groupby('hr')['casual'].mean()
-casual_weekend = hour_df[hour_df['is_weekend'] == 1].groupby('hr')['casual'].mean()
+casual_workday = filtered_df[filtered_df['workingday'] == 1].groupby('hr')['casual'].mean()
+casual_holiday = filtered_df[filtered_df['holiday'] == 1].groupby('hr')['casual'].mean()
+casual_weekend = filtered_df[filtered_df['is_weekend'] == 1].groupby('hr')['casual'].mean()
 
-registered_workday = hour_df[hour_df['workingday'] == 1].groupby('hr')['registered'].mean()
-registered_holiday = hour_df[hour_df['holiday'] == 1].groupby('hr')['registered'].mean()
-registered_weekend = hour_df[hour_df['is_weekend'] == 1].groupby('hr')['registered'].mean()
+registered_workday = filtered_df[filtered_df['workingday'] == 1].groupby('hr')['registered'].mean()
+registered_holiday = filtered_df[filtered_df['holiday'] == 1].groupby('hr')['registered'].mean()
+registered_weekend = filtered_df[filtered_df['is_weekend'] == 1].groupby('hr')['registered'].mean()
 
 fig, axs = plt.subplots(2, 3, figsize=(18, 10))
 fig.suptitle('Rata-rata Penyewaan Sepeda per Jam Berdasarkan Cluster', fontsize=16)
 
-axs[0, 0].plot(casual_workday, color='skyblue'); axs[0, 0].set_title('Casual Workday')
-axs[0, 1].plot(casual_holiday, color='lightgreen'); axs[0, 1].set_title('Casual Holiday')
-axs[0, 2].plot(casual_weekend, color='orange'); axs[0, 2].set_title('Casual Weekend')
+axs[0, 0].plot(casual_workday, color='skyblue'); axs[0, 0].set_title('Casual Hari Kerja')
+axs[0, 1].plot(casual_holiday, color='lightgreen'); axs[0, 1].set_title('Casual Hari Libur')
+axs[0, 2].plot(casual_weekend, color='orange'); axs[0, 2].set_title('Casual Akhir Pekan')
 
-axs[1, 0].plot(registered_workday, color='blue'); axs[1, 0].set_title('Registered Workday')
-axs[1, 1].plot(registered_holiday, color='green'); axs[1, 1].set_title('Registered Holiday')
-axs[1, 2].plot(registered_weekend, color='red'); axs[1, 2].set_title('Registered Weekend')
+axs[1, 0].plot(registered_workday, color='blue'); axs[1, 0].set_title('Registered Hari Kerja')
+axs[1, 1].plot(registered_holiday, color='green'); axs[1, 1].set_title('Registered Hari Libur')
+axs[1, 2].plot(registered_weekend, color='red'); axs[1, 2].set_title('Registered Akhir Pekan')
 
 for ax in axs.flat:
     ax.set_xlabel('Jam')
